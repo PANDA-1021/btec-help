@@ -1,5 +1,5 @@
 // pages/api/gemini.js
-// This runs on Vercel's servers — the API key is NEVER sent to the browser.
+// Runs server-side on Vercel. API key is read from environment — never sent to browser.
 
 export const config = {
   api: {
@@ -16,7 +16,10 @@ export default async function handler(req, res) {
 
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
   if (!GEMINI_API_KEY) {
-    return res.status(500).json({ error: "Gemini API key not configured on server." });
+    return res.status(500).json({
+      error:
+        "Gemini API key not configured. Add GEMINI_API_KEY to your Vercel environment variables.",
+    });
   }
 
   const { prompt, base64Pdf } = req.body;
@@ -27,7 +30,9 @@ export default async function handler(req, res) {
 
   const parts = [];
   if (base64Pdf) {
-    parts.push({ inline_data: { mime_type: "application/pdf", data: base64Pdf } });
+    parts.push({
+      inline_data: { mime_type: "application/pdf", data: base64Pdf },
+    });
   }
   parts.push({ text: prompt });
 
@@ -38,7 +43,7 @@ export default async function handler(req, res) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ contents: [{ parts }] }),
-      }
+      },
     );
 
     if (!geminiRes.ok) {
