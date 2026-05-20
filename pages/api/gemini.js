@@ -14,11 +14,12 @@ export const config = {
 const GEMINI_MODELS = [
   "gemini-2.5-flash",
   "gemini-2.0-flash",
-  "gemini-1.5-flash",
+  "gemini-2.0-flash-lite",
 ];
 
 async function callGeminiWithRetry(apiKey, body, retries = 2) {
-  for (let attempt = 0; attempt <= retries; attempt++) {
+  const maxAttempts = Math.max(retries + 1, GEMINI_MODELS.length);
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const modelIdx = Math.min(attempt, GEMINI_MODELS.length - 1);
     const model = GEMINI_MODELS[modelIdx];
 
@@ -56,7 +57,7 @@ async function callGeminiWithRetry(apiKey, body, retries = 2) {
       throw new Error(errMsg);
     }
 
-    if (attempt === retries) throw new Error(`Gemini error after ${retries + 1} attempts: ${errMsg}`);
+    if (attempt === maxAttempts - 1) throw new Error(`Gemini error after ${maxAttempts} attempts: ${errMsg}`);
     // Exponential back-off: 500ms, 1000ms
     await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
   }
