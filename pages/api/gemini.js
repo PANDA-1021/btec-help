@@ -22,12 +22,17 @@ async function callGeminiWithRetry(apiKey, body, retries = 2) {
     const modelIdx = Math.min(attempt, GEMINI_MODELS.length - 1);
     const model = GEMINI_MODELS[modelIdx];
 
+    // thinkingConfig is only supported on gemini-2.5-flash; strip it for all other models
+    const modelBody = model === "gemini-2.5-flash"
+      ? body
+      : { ...body, generationConfig: { ...body.generationConfig, thinkingConfig: undefined } };
+
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(modelBody),
         signal: AbortSignal.timeout(55000), // 55s — under Vercel's 60s limit
       }
     );
@@ -46,8 +51,8 @@ async function callGeminiWithRetry(apiKey, body, retries = 2) {
     const errBody = await res.json().catch(() => ({}));
     const errMsg = errBody?.error?.message || `HTTP ${res.status}`;
 
-    // Don't retry on client errors (bad API key, bad request)
-    if (res.status === 400 || res.status === 401 || res.status === 403) {
+    // Only hard-stop on auth errors; treat 400 as retryable (model may not support a param)
+    if (res.status === 401 || res.status === 403) {
       throw new Error(errMsg);
     }
 
