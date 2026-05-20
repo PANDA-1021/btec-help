@@ -65,7 +65,7 @@ function parseJSON(raw) {
 }
 
 // ── Prompts ──────────────────────────────────────────────────────────────────
-function buildExtractPrompt(targetSlides) {
+function buildExtractPrompt() {
   return `You are a BTEC document parser. Extract the content of this assignment PDF into structured JSON for a presentation.
 Return ONLY valid JSON — no markdown fences, no explanation.
 
@@ -82,12 +82,12 @@ Format exactly:
 }
 
 Rules:
-- Target exactly ${targetSlides} slides (±2 is acceptable)
+- Create ONE slide per section/heading found in the document — capture ALL sections, do not skip or merge any
 - Use ACTUAL headings from the document verbatim
-- Each slide: 3–6 concise bullet points capturing core ideas
+- Each slide: 3–6 concise bullet points capturing core ideas from that section
 - Keep bullets close to original phrasing (they will be paraphrased next)
 - Do NOT include a title slide (it is added automatically)
-- If fewer than ${targetSlides} clear sections exist, split the largest sections`;
+- Mirror the document structure exactly — the number of slides must match the number of sections in the PDF`;
 }
 
 function buildParaphrasePrompt(slides) {
@@ -291,7 +291,6 @@ export default function Home() {
   const [preview, setPreview] = useState(null);
   const [fileName, setFileName] = useState("");
   const [dragging, setDragging] = useState(false);
-  const [slideCount, setSlideCount] = useState(10);
   const [theme, setTheme] = useState("navy");
   const [progress, setProgress] = useState(0); // 0–100
   const fileRef = useRef(null);
@@ -332,8 +331,8 @@ export default function Home() {
 
       // Step 2 — Extract
       setStep(S.EXTRACTING); setProgress(20);
-      addLog(`🔵 Sending to Gemini — extracting ${slideCount} slides…`);
-      const rawExtract = await callGemini(buildExtractPrompt(slideCount), base64, { temperature: 0.2 });
+      addLog(`🔵 Sending to Gemini — extracting all sections…`);
+      const rawExtract = await callGemini(buildExtractPrompt(), base64, { temperature: 0.2 });
       setProgress(50);
 
       const structure = parseJSON(rawExtract);
@@ -376,7 +375,7 @@ export default function Home() {
       setError(err.message || "Something went wrong. Please try again.");
       setStep(S.ERROR);
     }
-  }, [slideCount, theme, addLog]);
+  }, [theme, addLog]);
 
   const handleFile = useCallback((e) => processFile(e.target.files?.[0]), [processFile]);
 
@@ -421,22 +420,6 @@ export default function Home() {
           {/* Options (idle only) */}
           {step === S.IDLE && (
             <div style={{ display: "flex", gap: 12, marginBottom: "1.5rem", flexWrap: "wrap" }}>
-              <div style={{ flex: 1, minWidth: 140 }}>
-                <label style={{ display: "block", color: C.muted, fontSize: 11, marginBottom: 5, textTransform: "uppercase", letterSpacing: 0.8 }}>
-                  Slides (target)
-                </label>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  {[6, 8, 10, 12, 14].map(n => (
-                    <button key={n} onClick={() => setSlideCount(n)} style={{
-                      padding: "5px 10px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600,
-                      background: slideCount === n ? C.blue : "rgba(255,255,255,0.08)",
-                      color: slideCount === n ? "#fff" : C.muted,
-                      transition: "all 0.15s",
-                    }}>{n}</button>
-                  ))}
-                </div>
-              </div>
-
               <div style={{ flex: 1, minWidth: 200 }}>
                 <label style={{ display: "block", color: C.muted, fontSize: 11, marginBottom: 5, textTransform: "uppercase", letterSpacing: 0.8 }}>
                   Theme
@@ -479,7 +462,7 @@ export default function Home() {
                 {dragging ? "Drop to upload" : "Click or drag & drop BTEC PDF"}
               </div>
               <div style={{ color: C.dim, fontSize: 12, marginTop: 4 }}>
-                PDF only · Max 19 MB · {slideCount} slides · {THEMES[theme].name} theme
+                PDF only · Max 19 MB · All sections extracted · {THEMES[theme].name} theme
               </div>
             </label>
           )}
